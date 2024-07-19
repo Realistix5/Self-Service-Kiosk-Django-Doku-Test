@@ -1,0 +1,1 @@
+# Self-Service-Kiosk-Django-Doku-Test
