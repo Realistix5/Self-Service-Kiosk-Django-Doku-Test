@@ -1,0 +1,9 @@
+Models
+=======
+
+.. automodule:: self_service_kiosk.models
+
+Views
+=======
+
+.. automodule:: self_service_kiosk.views

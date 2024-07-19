@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>self_service_kiosk.views &mdash; Self-Service-Kiosk Django  Dokumentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=cec59a4c"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+        <script src="../../_static/translations.js?v=70a09b52"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Stichwortverzeichnis" href="../../genindex.html" />
+    <link rel="search" title="Suche" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Self-Service-Kiosk Django
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Dokumentation durchsuchen" aria-label="Dokumentation durchsuchen" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Self-Service-Kiosk Django</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Modul-Quellcode</a></li>
+      <li class="breadcrumb-item active">self_service_kiosk.views</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Quellcode für self_service_kiosk.views</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+
+<span class="kn">from</span> <span class="nn">django.contrib.auth.decorators</span> <span class="kn">import</span> <span class="n">login_required</span><span class="p">,</span> <span class="n">user_passes_test</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.forms</span> <span class="kn">import</span> <span class="n">SetPasswordForm</span>
+<span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">HttpResponse</span><span class="p">,</span> <span class="n">JsonResponse</span><span class="p">,</span> <span class="n">FileResponse</span><span class="p">,</span> <span class="n">Http404</span><span class="p">,</span> <span class="n">HttpResponseForbidden</span>
+<span class="kn">from</span> <span class="nn">django.shortcuts</span> <span class="kn">import</span> <span class="n">render</span><span class="p">,</span> <span class="n">get_object_or_404</span><span class="p">,</span> <span class="n">redirect</span>
+<span class="kn">from</span> <span class="nn">django.urls</span> <span class="kn">import</span> <span class="n">reverse</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth</span> <span class="kn">import</span> <span class="n">authenticate</span><span class="p">,</span> <span class="n">login</span><span class="p">,</span> <span class="n">logout</span>
+<span class="kn">from</span> <span class="nn">django.contrib</span> <span class="kn">import</span> <span class="n">messages</span>
+<span class="kn">from</span> <span class="nn">django.views.decorators.csrf</span> <span class="kn">import</span> <span class="n">csrf_exempt</span><span class="p">,</span> <span class="n">csrf_protect</span>
+
+<span class="kn">from</span> <span class="nn">.forms</span> <span class="kn">import</span> <span class="n">FeedbackForm</span>
+<span class="kn">from</span> <span class="nn">.functions.send_feedback_email</span> <span class="kn">import</span> <span class="n">sendFeedbackEmail</span>
+<span class="kn">from</span> <span class="nn">.models</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.functions</span> <span class="kn">import</span> <span class="n">send_emails</span><span class="p">,</span> <span class="n">member_api</span><span class="p">,</span> <span class="n">sumup_api</span>
+<span class="kn">from</span> <span class="nn">dotenv</span> <span class="kn">import</span> <span class="n">load_dotenv</span>
+<span class="n">load_dotenv</span><span class="p">()</span>
+
+
+<span class="c1"># Create your views here.</span>
+
+<div class="viewcode-block" id="user_login"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.user_login">[Doku]</a><span class="k">def</span> <span class="nf">user_login</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="c1"># Process the request if posted data are available</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span>
+        <span class="c1"># Check username and password combination if correct</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;username&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span> <span class="ow">and</span> <span class="s1">&#39;password&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="p">:</span>
+            <span class="n">username</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]</span>
+            <span class="n">password</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/login2.html&#39;</span><span class="p">)</span>
+
+    <span class="n">user</span> <span class="o">=</span> <span class="n">authenticate</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Save session as cookie to login the user</span>
+        <span class="n">login</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+        <span class="c1"># Success, now let&#39;s login the user.</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:all_products&quot;</span><span class="p">,</span> <span class="n">permanent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Incorrect credentials, let&#39;s throw an error to the screen.</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Fehlerhafter Nutzername oder Passwort. Bitte erneut versuchen.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/login2.html&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="guest_login"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.guest_login">[Doku]</a><span class="k">def</span> <span class="nf">guest_login</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">hardcoded_username</span> <span class="o">=</span> <span class="s2">&quot;guest_user&quot;</span>
+
+    <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">hardcoded_username</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Save session as cookie to login the user</span>
+        <span class="n">login</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+        <span class="c1"># Redirect to desired page after successful login</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:all_products&quot;</span><span class="p">,</span> <span class="n">permanent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Incorrect credentials, let&#39;s throw an error to the screen.</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Fehler beim Gast-Login. Bitte versuchen Sie es erneut.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/login.html&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="category_list"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.category_list">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">category_list</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">categories</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s1">&#39;order_number&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/category_list.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;categories&#39;</span><span class="p">:</span> <span class="n">categories</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="category_detail"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.category_detail">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">category_detail</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">category_id</span><span class="p">):</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="n">get_object_or_404</span><span class="p">(</span><span class="n">Category</span><span class="p">,</span> <span class="n">pk</span><span class="o">=</span><span class="n">category_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/category_detail.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;category&#39;</span><span class="p">:</span> <span class="n">category</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="product_detail"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.product_detail">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">product_detail</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">product_id</span><span class="p">):</span>
+    <span class="n">product</span> <span class="o">=</span> <span class="n">get_object_or_404</span><span class="p">(</span><span class="n">MenuItem</span><span class="p">,</span> <span class="n">pk</span><span class="o">=</span><span class="n">product_id</span><span class="p">)</span>
+
+    <span class="n">quantityAlreadyInCart</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># Überprüfen, ob eine Bestellung in der Session existiert</span>
+    <span class="k">if</span> <span class="s1">&#39;cart&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">:</span>
+        <span class="n">cart</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">product_id</span><span class="p">)</span> <span class="ow">in</span> <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">quantityAlreadyInCart</span> <span class="o">=</span> <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">product_id</span><span class="p">)]</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">quantity</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">[</span><span class="s1">&#39;quantity&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s1">&#39;cart&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">:</span>
+            <span class="n">cart</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Wenn keine Bestellung existiert, einen neuen Warenkorb erstellen und in der Session speichern</span>
+            <span class="n">cart</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;items&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cart</span>
+
+        <span class="k">if</span> <span class="n">quantity</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># OrderItem zur vorläufigen Bestellung hinzufügen</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">product_id</span><span class="p">)</span> <span class="ow">in</span> <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">product_id</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># OrderItem zur vorläufigen Bestellung hinzufügen</span>
+            <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">product_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">quantity</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Item added to cart successfully.&#39;</span><span class="p">)</span>
+
+        <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cart</span>  <span class="c1"># Warenkorb in der Session aktualisieren</span>
+
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;self-service-kiosk:cart&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/product_detail.html&#39;</span><span class="p">,</span>
+                  <span class="p">{</span><span class="s1">&#39;product&#39;</span><span class="p">:</span> <span class="n">product</span><span class="p">,</span> <span class="s1">&#39;quantity&#39;</span><span class="p">:</span> <span class="n">quantityAlreadyInCart</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="cart"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.cart">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">cart</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">user_agent</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;HTTP_USER_AGENT&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">is_webview</span> <span class="o">=</span> <span class="s1">&#39;wv&#39;</span> <span class="ow">in</span> <span class="n">user_agent</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>  <span class="c1"># &#39;wv&#39; steht für WebView</span>
+
+    <span class="n">user_cart</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cart&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user_cart</span> <span class="ow">and</span> <span class="n">user_cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]:</span>
+        <span class="n">order_items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">total_price</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">product_id</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">user_cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">product</span> <span class="o">=</span> <span class="n">get_object_or_404</span><span class="p">(</span><span class="n">MenuItem</span><span class="p">,</span> <span class="n">pk</span><span class="o">=</span><span class="n">product_id</span><span class="p">)</span>
+            <span class="n">subtotal</span> <span class="o">=</span> <span class="n">product</span><span class="o">.</span><span class="n">price</span> <span class="o">*</span> <span class="n">quantity</span>
+            <span class="n">order_items</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;product&#39;</span><span class="p">:</span> <span class="n">product</span><span class="p">,</span> <span class="s1">&#39;quantity&#39;</span><span class="p">:</span> <span class="n">quantity</span><span class="p">,</span> <span class="s1">&#39;subtotal&#39;</span><span class="p">:</span> <span class="n">subtotal</span><span class="p">})</span>
+            <span class="n">total_price</span> <span class="o">+=</span> <span class="n">subtotal</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/cart.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;order_items&#39;</span><span class="p">:</span> <span class="n">order_items</span><span class="p">,</span> <span class="s1">&#39;total_price&#39;</span><span class="p">:</span> <span class="n">total_price</span><span class="p">,</span>
+                                                                <span class="s1">&#39;is_webview&#39;</span><span class="p">:</span> <span class="n">is_webview</span><span class="p">})</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/cart.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;order_items&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;total_price&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                                                                <span class="s1">&#39;is_webview&#39;</span><span class="p">:</span> <span class="n">is_webview</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="confirm_order"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.confirm_order">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">confirm_order</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">tx_id</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;paid&quot;</span><span class="p">)</span>
+    <span class="n">paid_amount</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">tx_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">paid_amount</span> <span class="o">=</span> <span class="n">sumup_api</span><span class="o">.</span><span class="n">confirmSumUpTransactionAndGetAmount</span><span class="p">(</span><span class="n">tx_id</span><span class="p">)</span>
+
+    <span class="n">cart</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cart&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cart</span> <span class="ow">and</span> <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="n">Order</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>  <span class="c1"># Neue Bestellung in Datenbank erstellen</span>
+            <span class="k">for</span> <span class="n">product_id</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">product</span> <span class="o">=</span> <span class="n">get_object_or_404</span><span class="p">(</span><span class="n">MenuItem</span><span class="p">,</span> <span class="n">pk</span><span class="o">=</span><span class="n">product_id</span><span class="p">)</span>
+                <span class="n">OrderItem</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">,</span> <span class="n">menu_item</span><span class="o">=</span><span class="n">product</span><span class="p">,</span> <span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">)</span>  <span class="c1"># OrderItem in Datenbank erstellen</span>
+            <span class="k">if</span> <span class="n">paid_amount</span> <span class="o">&gt;=</span> <span class="nb">float</span><span class="p">(</span><span class="n">order</span><span class="o">.</span><span class="n">get_total_price</span><span class="p">()):</span>
+                <span class="n">order</span><span class="o">.</span><span class="n">paid</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">order</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+                <span class="n">case</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">case</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">paid_amount</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">Payment</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">amount</span><span class="o">=</span><span class="n">paid_amount</span><span class="p">,</span> <span class="n">transaction_id</span><span class="o">=</span><span class="n">tx_id</span><span class="p">)</span>
+
+            <span class="k">del</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;checkout_amount&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">order</span><span class="o">.</span><span class="n">get_total_price</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:order_success&quot;</span><span class="p">,</span> <span class="n">case</span><span class="o">=</span><span class="n">case</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;An error occurred while confirming your order. Please try again later.&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Your cart is empty.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:logout&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="invoice_list"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.invoice_list">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">invoice_list</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">username</span> <span class="o">==</span> <span class="s2">&quot;guest_user&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="s2">&quot;not allowed for guest user&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">current_year</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">year</span>
+        <span class="c1"># Holen Sie alle Bestellungen und Zahlungen des angemeldeten Benutzers für das aktuelle Jahr</span>
+        <span class="n">orders</span> <span class="o">=</span> <span class="n">Order</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">created_at__year</span><span class="o">=</span><span class="n">current_year</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s1">&#39;created_at&#39;</span><span class="p">)</span>
+        <span class="n">payments</span> <span class="o">=</span> <span class="n">Payment</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                          <span class="n">created_at__year</span><span class="o">=</span><span class="n">current_year</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s1">&#39;created_at&#39;</span><span class="p">)</span>
+
+        <span class="n">user_agent</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;HTTP_USER_AGENT&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">is_webview</span> <span class="o">=</span> <span class="s1">&#39;wv&#39;</span> <span class="ow">in</span> <span class="n">user_agent</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>  <span class="c1"># &#39;wv&#39; steht für WebView</span>
+
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">order</span> <span class="ow">in</span> <span class="n">orders</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">order</span><span class="o">.</span><span class="n">paid</span><span class="p">:</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="n">order</span><span class="o">.</span><span class="n">get_total_price</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">payment</span> <span class="ow">in</span> <span class="n">payments</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="n">total</span> <span class="o">-</span> <span class="n">payment</span><span class="o">.</span><span class="n">amount</span>
+        <span class="n">isDebit</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="o">-</span><span class="n">total</span>
+            <span class="n">isDebit</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/account_details.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;orders&#39;</span><span class="p">:</span> <span class="n">orders</span><span class="p">,</span> <span class="s1">&#39;payments&#39;</span><span class="p">:</span> <span class="n">payments</span><span class="p">,</span>
+                                                                        <span class="s1">&#39;total_price&#39;</span><span class="p">:</span> <span class="n">total</span><span class="p">,</span> <span class="s1">&#39;total_is_debit&#39;</span><span class="p">:</span> <span class="n">isDebit</span><span class="p">,</span>
+                                                                        <span class="s1">&#39;is_webview&#39;</span><span class="p">:</span> <span class="n">is_webview</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="export_invoices_csv"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.export_invoices_csv">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">export_invoices_csv</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;text/csv&#39;</span><span class="p">)</span>
+    <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;attachment; filename=&quot;invoice.csv&quot;&#39;</span>
+
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Rechnungsnummer&#39;</span><span class="p">,</span> <span class="s1">&#39;Erstelldatum&#39;</span><span class="p">,</span> <span class="s1">&#39;Gesamtpreis&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">order</span> <span class="ow">in</span> <span class="n">Order</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="p">):</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">order</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">order</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span> <span class="n">order</span><span class="o">.</span><span class="n">get_total_price</span><span class="p">()])</span>
+
+    <span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="user_logout"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.user_logout">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">user_logout</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">logout</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">,</span> <span class="n">permanent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="update_quantity"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.update_quantity">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">update_quantity</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">quantity</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s1">&#39;cart&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">:</span>
+        <span class="n">cart</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cart</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="n">quantity</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">][</span><span class="n">item_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">quantity</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cart</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">item_id</span><span class="p">))</span>
+    <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;cart&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cart</span>
+
+    <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Quantity updated successfully&#39;</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="all_products_view"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.all_products_view">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">all_products_view</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">username</span> <span class="o">!=</span> <span class="s2">&quot;event_user&quot;</span><span class="p">:</span>
+        <span class="n">categories</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">event_category</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">&quot;order_number&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">categories</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">event_category</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">&quot;order_number&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Hole den Warenkorb für die aktuelle Session</span>
+    <span class="n">cart_items</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cart&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;items&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="c1"># Kombiniere verfügbare Produkte mit Mengen im Warenkorb</span>
+    <span class="n">combined_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">categories_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">product_counts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+        <span class="n">categories_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;category&quot;</span><span class="p">:</span> <span class="n">category</span><span class="p">,</span> <span class="s2">&quot;product_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">category</span><span class="o">.</span><span class="n">menuitem_set</span><span class="o">.</span><span class="n">all</span><span class="p">())})</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">category</span><span class="o">.</span><span class="n">menuitem_set</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">hidden</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">&quot;order_number&quot;</span><span class="p">):</span>
+            <span class="n">combined_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s1">&#39;item&#39;</span><span class="p">:</span> <span class="n">item</span><span class="p">,</span>
+                <span class="s1">&#39;quantity&#39;</span><span class="p">:</span> <span class="n">cart_items</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># 0, wenn nicht im Warenkorb</span>
+            <span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/all_products.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;categories&#39;</span><span class="p">:</span> <span class="n">categories_data</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">combined_data</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="register"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.register">[Doku]</a><span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;GET&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/register.html&#39;</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">mitgliedsnummer</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mitgliedsnummer&#39;</span><span class="p">)</span>
+        <span class="n">user_exists</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_by_natural_key</span><span class="p">(</span><span class="n">mitgliedsnummer</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span><span class="p">:</span>
+                <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Nutzer ist bereits registriert und aktiviert. Nutze &gt;&gt;Passwort vergessen?&lt;&lt;,&quot;</span>
+                                        <span class="s2">&quot; wenn du dich nicht mehr anmelden kannst.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Nutzer ist bereits registriert, aber nicht aktiviert.&quot;</span><span class="p">)</span>
+                <span class="n">user_exists</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">User</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="n">name</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">gender</span><span class="p">,</span> <span class="n">street</span><span class="p">,</span> <span class="n">plz</span><span class="p">,</span> <span class="n">city</span> <span class="o">=</span> <span class="n">member_api</span><span class="o">.</span><span class="n">get_user_info</span><span class="p">(</span><span class="n">mitgliedsnummer</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;not authorized&quot;</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Abfragen der Mitglieder-API ist fehlgeschlagen. &quot;</span>
+                                    <span class="s2">&quot;Bitte kontaktiere einen Mitarbeiter.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Mitgliedsnummer konnte nicht gefunden werden. Bitte versuche es erneut.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">user_exists</span><span class="p">:</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">mitgliedsnummer</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s1">&#39;123456&#39;</span><span class="p">,</span> <span class="n">is_active</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">UserInfo</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">,</span> <span class="n">street</span><span class="o">=</span><span class="n">street</span><span class="p">,</span> <span class="n">plz</span><span class="o">=</span><span class="n">plz</span><span class="p">,</span> <span class="n">city</span><span class="o">=</span><span class="n">city</span><span class="p">,</span> <span class="n">gender</span><span class="o">=</span><span class="n">gender</span><span class="p">)</span>
+            <span class="n">RegistrationToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="n">RegistrationToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+            <span class="n">send_emails</span><span class="o">.</span><span class="n">sendRegistrationEmail</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Registrierungs-Email wurde an </span><span class="si">{}</span><span class="s2"> gesendet.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">email</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="forgot_password"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.forgot_password">[Doku]</a><span class="k">def</span> <span class="nf">forgot_password</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;GET&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/forgot_password.html&#39;</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">mitgliedsnummer</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mitgliedsnummer&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">mitgliedsnummer</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">User</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Kein Nutzer mit dieser Mitgliedsnummer registriert. &quot;</span>
+                                    <span class="s2">&quot;Bitte nutze &gt;&gt; Noch kein Konto? &lt;&lt; wenn du noch kein Konto hast.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Nutzer ist noch nicht aktiviert. Bitte nutze &gt;&gt; Noch kein Konto? &lt;&lt; &quot;</span> 
+                                    <span class="s2">&quot;um dein Konto zu aktivieren.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+        <span class="n">PasswordResetToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">PasswordResetToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+        <span class="n">send_emails</span><span class="o">.</span><span class="n">sendForgotPasswordEmail</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Email, um dein Passwort zurückzusetzen wurde an </span><span class="si">{}</span><span class="s2"> gesendet.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="set_password"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.set_password">[Doku]</a><span class="k">def</span> <span class="nf">set_password</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="c1"># Tokentype: 1 for registration, 2 for password reset</span>
+    <span class="n">tokentype</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_object</span> <span class="o">=</span> <span class="n">RegistrationToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="n">RegistrationToken</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">token_object</span> <span class="o">=</span> <span class="n">PasswordResetToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">)</span>
+            <span class="n">tokentype</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">except</span> <span class="n">PasswordResetToken</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Der aufgerufene Token wurde nicht gefunden. &quot;</span>
+                                    <span class="s2">&quot;Bitte fordern Sie einen neuen an.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">token_object</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">token_object</span><span class="o">.</span><span class="n">user</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+            <span class="n">form</span> <span class="o">=</span> <span class="n">SetPasswordForm</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+                <span class="n">form</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+                <span class="n">token_object</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+
+                <span class="n">LoginToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+                <span class="n">login_token</span> <span class="o">=</span> <span class="n">LoginToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+                <span class="n">send_emails</span><span class="o">.</span><span class="n">sendNewPasswordSetEmail</span><span class="p">(</span><span class="n">login_token</span><span class="p">)</span>
+                <span class="c1"># Hier könnte man dem Benutzer mitteilen, dass das Passwort erfolgreich gesetzt wurde</span>
+                <span class="k">if</span> <span class="n">tokentype</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">user</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+                    <span class="n">messages</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Dein Account wurde erfolgreich aktiviert und dein Passwort gesetzt.&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">messages</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Dein Passwort wurde erfolgreich geändert.&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">form</span> <span class="o">=</span> <span class="n">SetPasswordForm</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/set_password.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span> <span class="n">form</span><span class="p">})</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;Der aufgerufene Token wurde bereits verwendet. &quot;</span>
+                                <span class="s2">&quot;Bitte fordern Sie einen neuen an.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="payment_problem"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.payment_problem">[Doku]</a><span class="k">def</span> <span class="nf">payment_problem</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">statusCode</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;code&quot;</span><span class="p">))</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Es hat geklappt, wieso sind wir hier?&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/payment_failed.html&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Bitte Ortungsdienste aktivieren.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Fehlerhafte Eingabeparameter.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Fehlerhafter Token.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Verbingung fehlgeschlagen.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">7</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Keine Berechtigung.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Kein Händler eingeloggt.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">9</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Fehler: Foreign Transaction ID bereits vergeben.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Fehler: Falscher Affiliate Key.&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">11</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Die Zahlung konnte nicht bestätigt werden. (Fehler 11)&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">12</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Die Zahlung konnte nicht bestätigt werden. (Fehler 12)&quot;</span>
+    <span class="k">elif</span> <span class="n">statusCode</span> <span class="o">==</span> <span class="mi">13</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Die Zahlung konnte nicht bestätigt werden. (Fehler 13)&quot;</span>
+
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/payment_problem.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="n">message</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="order_success"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.order_success">[Doku]</a><span class="k">def</span> <span class="nf">order_success</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">case</span><span class="p">):</span>
+    <span class="n">amount</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;checkout_amount&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">case</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Bestellung über &quot;</span><span class="o">+</span><span class="n">amount</span><span class="o">+</span><span class="s2">&quot;€ erfolgreich auf Rechnung bestellt.&quot;</span>
+    <span class="k">elif</span> <span class="n">case</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Bestellung über &quot;</span><span class="o">+</span><span class="n">amount</span><span class="o">+</span><span class="s2">&quot;€ erfolgreich platziert und bezahlt.&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Unbekannter Fall.&quot;</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/order_success.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="n">message</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="qr_code_view"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.qr_code_view">[Doku]</a><span class="k">def</span> <span class="nf">qr_code_view</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">qr_code</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;qr_code&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">qr_code</span><span class="p">:</span>
+                <span class="c1"># Verarbeiten Sie hier den QR-Code-Wert und leiten Sie entsprechend weiter</span>
+                <span class="k">if</span> <span class="n">qr_code</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;login:&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:login_with_token&quot;</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">qr_code</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s1">&#39;login:&#39;</span><span class="p">):])</span>
+                <span class="k">elif</span> <span class="n">qr_code</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;reset_password:&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:set_password&quot;</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">qr_code</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s1">&#39;reset_password:&#39;</span><span class="p">):])</span>
+                <span class="k">elif</span> <span class="n">qr_code</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;register:&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:set_password&quot;</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">qr_code</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s1">&#39;register:&#39;</span><span class="p">):])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Ungültige Aktion im QR-Code&#39;</span><span class="p">},</span> <span class="n">status</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;QR-Code nicht gefunden&#39;</span><span class="p">},</span> <span class="n">status</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Ungültiges JSON&#39;</span><span class="p">},</span> <span class="n">status</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Http404</span></div>
+
+
+<div class="viewcode-block" id="login_with_token"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.login_with_token">[Doku]</a><span class="k">def</span> <span class="nf">login_with_token</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">login_token</span> <span class="o">=</span> <span class="n">LoginToken</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">login_token</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="n">login</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">login_token</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;self-service-kiosk:index&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Dieser Token ist abgelaufen. Bitte Passwort zurücksetzen um neuen zu generieren.&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">LoginToken</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;Ungültiger Token.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;self-service-kiosk:login&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="process_payment"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.process_payment">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">process_payment</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="n">tx_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;paid&quot;</span><span class="p">))</span>
+    <span class="n">payment_type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">))</span>
+
+    <span class="c1"># Wenn es bereits Zahlungen mit transaction_id gibt, zeige Fehlermeldung</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">Payment</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">transaction_id</span><span class="o">=</span><span class="n">tx_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:payment_problem&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;?code=11&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">payment_type</span> <span class="o">==</span> <span class="s2">&quot;order&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:confirm_order&quot;</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;?paid=&quot;</span><span class="o">+</span><span class="n">tx_id</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">payment_type</span> <span class="o">==</span> <span class="s2">&quot;credit&quot;</span><span class="p">:</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span>
+        <span class="n">amount</span> <span class="o">=</span> <span class="n">sumup_api</span><span class="o">.</span><span class="n">confirmSumUpTransactionAndGetAmount</span><span class="p">(</span><span class="n">tx_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">amount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">Payment</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">transaction_id</span><span class="o">=</span><span class="n">tx_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">,</span> <span class="n">amount</span><span class="o">=</span><span class="n">amount</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:invoice_list&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:payment_problem&quot;</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;?code=13&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s2">&quot;self-service-kiosk:payment_problem&quot;</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;?code=12&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="invoice_view"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.invoice_view">[Doku]</a><span class="nd">@login_required</span>
+<span class="nd">@user_passes_test</span><span class="p">(</span><span class="k">lambda</span> <span class="n">u</span><span class="p">:</span> <span class="n">u</span><span class="o">.</span><span class="n">is_staff</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">invoice_view</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+    <span class="n">base_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">BASE_DIR</span><span class="p">,</span> <span class="s1">&#39;invoices&#39;</span><span class="p">))</span>
+    <span class="n">media_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">file_path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">media_path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">FileResponse</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">media_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">HttpResponseForbidden</span><span class="p">(</span><span class="s2">&quot;Sie haben keine Berechtigung, auf diese Datei zuzugreifen.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="order_detail"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.order_detail">[Doku]</a><span class="nd">@login_required</span>
+<span class="k">def</span> <span class="nf">order_detail</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">order_id</span><span class="p">):</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">get_object_or_404</span><span class="p">(</span><span class="n">Order</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">order_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s1">&#39;self_service_kiosk/order.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;order&#39;</span><span class="p">:</span> <span class="n">order</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="help_page"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.help_page">[Doku]</a><span class="nd">@csrf_protect</span>
+<span class="k">def</span> <span class="nf">help_page</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;POST&quot;</span><span class="p">:</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="n">FeedbackForm</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="n">feedback_text</span> <span class="o">=</span> <span class="n">form</span><span class="o">.</span><span class="n">cleaned_data</span><span class="p">[</span><span class="s1">&#39;feedback_text&#39;</span><span class="p">]</span>
+            <span class="n">feedback_sender</span> <span class="o">=</span> <span class="n">form</span><span class="o">.</span><span class="n">cleaned_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;feedback_sender&#39;</span><span class="p">,</span> <span class="s1">&#39;Anonym&#39;</span><span class="p">)</span>
+            <span class="n">sendFeedbackEmail</span><span class="p">(</span><span class="n">feedback_text</span><span class="p">,</span> <span class="n">feedback_sender</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;self_service_kiosk/help_page.html&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="n">FeedbackForm</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">&quot;self_service_kiosk/help_page.html&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span> <span class="n">form</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="send_feedback"><a class="viewcode-back" href="../../modules.html#self_service_kiosk.views.send_feedback">[Doku]</a><span class="nd">@csrf_exempt</span>
+<span class="k">def</span> <span class="nf">send_feedback</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;POST&quot;</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+        <span class="n">feedback_text</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;feedback_text&#39;</span><span class="p">)</span>
+        <span class="n">feedback_sender</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;feedback_sender&#39;</span><span class="p">,</span> <span class="s1">&#39;Anonym&#39;</span><span class="p">)</span>
+
+        <span class="n">sendFeedbackEmail</span><span class="p">(</span><span class="n">feedback_text</span><span class="p">,</span> <span class="n">feedback_sender</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s1">&#39;success&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s1">&#39;success&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Christopher Trautmann.</p>
+  </div>
+
+  Erstellt mit <a href="https://www.sphinx-doc.org/">Sphinx</a> mit einem
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    bereitgestellt von <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
